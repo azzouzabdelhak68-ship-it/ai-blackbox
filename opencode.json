@@ -1,0 +1,12 @@
+{
+  "$schema": "https://opencode.ai/config.json",
+  "preset": "python-patterns",
+  "formatter": {
+    "command": "ruff format",
+    "extensions": [".py"]
+  },
+  "linter": {
+    "command": "ruff check .",
+    "extensions": [".py"]
+  }
+}

@@ -1,0 +1,32 @@
+services:
+  app:
+    build: .
+    image: ai-blackbox:latest
+    volumes:
+      - ${BLACKBOX_DIR:-./blackbox_store}:/blackbox
+      - ./weights:/weights:ro
+      - ./manifests:/app/manifests
+    shm_size: 1g
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: [gpu]
+    environment:
+      - BLACKBOX_DIR=/blackbox
+      - BLACKBOX_GPU=cuda
+    command: ["--help"]
+
+  sidecar:
+    build: .
+    image: ai-blackbox:latest
+    volumes:
+      - ${BLACKBOX_DIR:-./blackbox_store}:/blackbox
+      - ./manifests:/app/manifests
+    shm_size: 1g
+    environment:
+      - BLACKBOX_DIR=/blackbox
+      - BLACKBOX_ROLE=sidecar
+    command: ["run", "--help"]

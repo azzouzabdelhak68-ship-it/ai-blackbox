@@ -1,0 +1,14 @@
+# Community benchmarks — the report
+
+> No official 70B/B200 numbers day 1. `benchmark.sh` + estimator are the method; this table IS the report (honesty lock). One dir per run: `benchmarks/community/<date>-<gpu>-<model>-W<w>/` with `result.json` + `env.txt`.
+
+Spec keys (`§BENCH`): `mode, W, T, R, precision, overhead_pct, ms_per_token_baseline, ms_per_token_tapped, deep_bin_bytes_per_run, total_GB, flag, torch, cuda, gpu, os`.
+
+| mode | W | T | R | precision | overhead_pct | ms_baseline | ms_tapped | GB | flag | torch | cuda | gpu | os |
+|------|---|---|---|-----------|--------------|-------------|-----------|----|------|-------|------|-----|----|
+<!-- ms_baseline = ms_per_token_baseline; ms_tapped = ms_per_token_tapped; GB = total_GB (W*T*R*B*1.15); flag = GREEN (<50GB) / YELLOW (50-1000GB) / RED (>1000GB) -->
+| outer | 0 | 59 | 10 | fp16 | 4321.429 | 0.0003 | 0.0124 | 3.1e-05 | GREEN | 2.12.1 | cpu | none | Windows 10 |
+| outer | 0 | 59 | 10 | fp16 | 4621.429 | 0.0003 | 0.0132 | 3.1e-05 | GREEN | 2.12.1 | cpu | none | Windows 10 |
+| deep | 1002 | 10 | 2 | fp16 | n/a | n/a | 0.3572 | 4.6e-05 | GREEN | 2.12.1 | cpu | none | Windows 10 |
+| deep | 1002 | 500 | 2 | fp16 | n/a | n/a | 0.4335 | 0.002305 | GREEN | 2.12.1 | cpu | none | Windows 10 |
+| outer | 0 | 59 | 5 | fp16 | 3407.69 | 0.0005 | 0.0182 | 1.6e-05 | GREEN | 2.12.1 | cpu | none | Windows 10 |

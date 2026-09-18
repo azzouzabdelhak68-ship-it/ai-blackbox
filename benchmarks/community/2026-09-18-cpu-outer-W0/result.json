@@ -1,0 +1,20 @@
+{
+  "GB": 1.6e-05,
+  "R": 5,
+  "T": 59,
+  "W": 0,
+  "cuda": "cpu",
+  "deep_bin_bytes_per_run": 0,
+  "flag": "GREEN",
+  "gpu": "none",
+  "mode": "outer",
+  "ms_baseline": 0.0005,
+  "ms_per_token_baseline": 1e-05,
+  "ms_per_token_tapped": 0.00031,
+  "ms_tapped": 0.0182,
+  "os": "Windows 10",
+  "overhead_pct": 3407.69,
+  "precision": "fp16",
+  "torch": "2.12.1",
+  "total_GB": 1.6e-05
+}
