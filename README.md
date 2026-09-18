@@ -1,99 +1,125 @@
-# AI Black Box — a flight recorder for AI
+# AI Black Box
 
-I'm one person building this. The whole idea in one sentence:
+[![Python 3.10+](https://img.shields.io/badge/python-3.10%2B-blue)](pyproject.toml)
+[![PyTorch 2.4+](https://img.shields.io/badge/pytorch-2.4%2B-ee4c2c)](https://pytorch.org)
+[![License: MIT](https://img.shields.io/badge/license-MIT-green)](LICENSE)
+[![Status: v0.1](https://img.shields.io/badge/status-v0.1--alpha-lightgrey)]()
 
-> **Don't tell researchers what the AI did. Give them the evidence needed to determine what the AI did.**
+**Flight recorder for LLMs.** Don't tell researchers what the model did — give them tamper-evident evidence to figure it out themselves.
 
-Like an aircraft black box: it doesn't decide why the plane crashed — it just preserves enough evidence for investigators to reconstruct what happened. Searchable, reproducible, hash-sealed.
+Like an aircraft black box: it doesn't judge the crash, it preserves the trace so investigators can reconstruct it. Searchable, reproducible, hash-sealed.
 
-![research](https://img.shields.io/badge/research-Linux_100%25_labs-NVIDIA_75--81%25-78.5%25_devs_Linux-blue)
-<!-- 100% of top-10 AI labs run Linux, NVIDIA holds 75–81% of AI accelerator revenue, 78.5% of devs use Linux (Stack Overflow 2025). That's why Deep targets Linux+NVIDIA first — it's where the models actually live. -->
+### Why this exists
 
-## The deal, straight
-
-> Try in 5 min (pip, Outer), Deep in 15 min (Docker, Linux+NVIDIA). Outer <0.5%, Deep sampled ~5% — verify yourself with `benchmark.sh`; community numbers are the report. Never kills your job, never deletes without you, never traps your data (export zip + guide to adapt — we won't build your schema). Hash-verifiable, raw for research (don't run on private user data unless legal basis — plug your redactor if you must). Community-maintained, no SLA unless funded. Replay via seed+settings.
-
-That's the promise. Everything below is just details.
-
-## Try it
-
-**5 minutes, Outer** — any OS, any model, pip, no Docker:
-
-```bash
-pip install ai-blackbox
-with BlackBox.watch():   # context manager for research
-    model.generate("hello")
-# or: model = blackbox.torch.wrap(model)  # wrapper/decorator for prod
-blackbox run --watch watchlists/pilot.yaml --tag cohort=good --seed 42
-blackbox verify RUN-000184
-```
-
-**15 minutes, Deep** — Linux + Docker + NVIDIA + PyTorch, and you need the actual model weights:
-
-```bash
-blackbox scan /weights/Llama-3-8B          # 2-10s on CPU, once per checkpoint
-blackbox run --watch watchlists/pilot.yaml  # CLI and Python do same
-blackbox verify RUN-000184                  # hash-seal check
-blackbox view RUN-000184 --open            # local HTML
-df = blackbox.to_dataframe(RUN-000184)     # pandas in Jupyter — primary
-```
-
-Full flow: `scan → run → find → compare → verify → view → size → export --zip`.
-Exact contracts for every flag: `spec.md` §A.1–A.13.
-
-## Two modes — don't mix them up
-
-| Mode | When | What you get | Overhead |
-|------|------|--------------|----------|
-| **Outer — always** | Any model: OpenAI/Claude/Gemini via API, or open weights locally | Prompt, output tokens, token order, logits where available, timing, cost, seed/settings, error/safety flags | **<0.5%**, ~3 KB/run |
-| **Deep — only if you have weights** | Open weights locally (Llama, Mistral, etc.) or closed-lab running inside own infra | **Exact value per token** for *only* neurons/heads you declared before run, plus attention/precision you chose | **~5–7% for 1k watched**, ~20% for 100k watched (flagged RED, allowed) |
-
-No weights, no Deep — by design, not by bug. Nobody can see inside a locked API, me included. Deep day 1 is **Linux + Docker + NVIDIA + PyTorch only**; on Windows/Mac you get Outer + CPU fallback + scan/search/viewer, and I won't claim Deep numbers there.
-
-## What this is NOT (read before you complain)
-
-- It records only what you **declared before the run** — exact value per token for watched neurons. Anyone promising "every neuron of any model" is selling petabytes.
-- **No official 70B numbers day 1.** I don't have a 70B fleet. I ship `benchmark.sh` + a live estimator (`GREEN <50GB / YELLOW 50–1000GB / RED >1000GB`) and the `benchmarks/community/` numbers **are** the report. Run it yourself, post your numbers.
-- **Never auto-deletes, never auto-redacts.** The estimator and `retention_state.json` only flag; `retention_policy.json` is yours, deletion is yours.
-- **Never traps your data.** `blackbox export --zip` hands you plain files (`outer.json`, `deep.bin`, `deep_index.json`, `seal.json`). `docs/FORMAT_GUIDE.md` shows how to reshape them — but I won't build your schema for you.
-- **Community-maintained, no SLA, no PR-review promise unless funded.** Sponsor/grant → we talk SLA. Otherwise it's me plus whoever shows up. MIT.
-- Hash chain is local v1 (no HSM/Sigstore). `blackbox verify` fails loudly on edit — that's the whole tamper story.
-- Viewer v1 is CLI + static HTML. No React, no npm. It opens with a double-click and works offline, which is the point.
-
-## One serious thing: privacy
-
-**User prompts and tokens are private — accessing them without legal basis is illegal, full stop.** This box is for synthetic/consented eval sets: you write the prompts, you run them, you study the traces. **Do not point it at private user traffic** unless the law where you operate says you can. Raw save for research; if the law *does* allow prod logging, plug your own `redactor=` hook (I provide the hook point, not the filter — your law, your filter).
-
-## Your disk, your call
-
-The box **never auto-deletes**. `blackbox size --by-model` shows usage + `GREEN/YELLOW/RED`; `retention_policy.json` says `"auto_delete": "never"` and means it. You decide, you delete.
-
-## Who maintains this? Me. Possibly nobody, eventually.
-
-Solo project, MIT, no lock-in by construction: plain files, documented formats, export anytime. If I go quiet, everything you need to fork it, port it (`gpu_adapters/` is one file per backend), or adapt the format is already in the repo. That's deliberate — software that only works while its author is awake isn't infrastructure.
-
-## What's where
-
-```text
-ai-blackbox/
-├── README.md                 # this file
-├── LICENSE (MIT)
-├── pyproject.toml            # pip install ai-blackbox
-├── Dockerfile                # pytorch/pytorch:2.4.0-cuda12.1-runtime
-├── blackbox/                 # SDK: scan / watchlist / controller / tap / gpu_adapters / storage / search
-├── docs/                     # FORMAT_GUIDE.md, PRESETS.md, ADAPTER_GUIDE.md, ARCHITECTURE.md, THREAT_MODEL.md
-├── adapters/format/          # llama3.json, mistral.json
-├── examples/                 # 01_outer_only_api.py, 02_deep_llama_watchlist.py, 03_compare_good_bad.py
-├── benchmarks/community/     # RESULTS.md + template/env.txt (community numbers are the report)
-└── spec.md / product.md (locked) / plan.md (build manual)
-```
-
-`product.md` is the locked source of truth, `spec.md` is exact behavior, `plan.md` is the build manual. I don't edit `product.md`. Ever.
-
-## License
-
-MIT — see `LICENSE`. Community-maintained, no SLA unless funded.
+Most LLM observability stops at prompts and outputs. If you want to know *what happened inside* — which heads fired, which neurons spiked at token 17 — you're wiring hooks by hand for every experiment. This box does it once, externally, without killing your job or your disk.
 
 ---
 
-*Raw save for research — don't run on private user traffic unless legal basis; plug your redactor= if you must.*
+### Features
+
+- **Two modes, one API** — `Outer` (any model via API or weights, ~3KB/run) and `Deep` (exact values for watched neurons/heads, only with weights)
+- **Declare before you run** — pick neurons in a `watchlist.yaml` against a CPU-scanned manifest; validated before any GPU work
+- **Zero-stall tap** — async `copyStream` gather, never blocks inference, never traps on `synchronize()`
+- **Hash-sealed** — `SHA256(prev || outer || deep || replay)`, `blackbox verify` fails on any edit
+- **Search, don't grep** — Hot/Cold two-phase search over thousands of runs (`find`, `compare`)
+- **View anywhere** — CLI table, JSON, or self-contained HTML (no server, no npm)
+
+---
+
+### Installation
+
+```bash
+# Outer — any OS, no GPU needed
+pip install ai-blackbox
+
+# From source
+git clone https://github.com/azzouzabdelhak68-ship-it/ai-blackbox
+cd ai-blackbox
+pip install -e ".[dev]"
+
+# Deep — Linux + Docker + NVIDIA (weights on disk)
+docker run --gpus all --shm-size=1g \
+  -v $BLACKBOX_DIR:/blackbox -v /weights:/weights \
+  pytorch/pytorch:2.4.0-cuda12.1-runtime nvidia-smi
+```
+
+Requires Python 3.10–3.12, PyTorch 2.4+, Docker 24+ for Deep.
+
+---
+
+### Quickstart
+
+**Outer — works with any model (API or local):**
+
+```python
+from blackbox import BlackBox
+
+with BlackBox.watch("watchlists/outer_only.yaml"):
+    model.generate("Explain why the sky is blue", seed=42)
+```
+
+```bash
+blackbox run --watch watchlists/outer_only.yaml --tag cohort=good --seed 42
+blackbox verify RUN-000001
+blackbox view RUN-000001 --export-html ./run.html
+```
+
+**Deep — open weights on your machine:**
+
+```bash
+blackbox scan /path/to/weights          # CPU scan, 2–10s, once per checkpoint
+blackbox run --watch watchlists/pilot.yaml
+blackbox find "N-24-0001 AT token=17 > 0.8" --verify
+blackbox compare --good tag:cohort=good --bad tag:cohort=bad --neurons N-24-0001,A-24-07
+```
+
+```python
+import blackbox
+df = blackbox.to_dataframe("RUN-000184", tokens=(15, 20))  # pandas, float32 logical values
+```
+
+> Works with any checkpoint that has `config.json` + `safetensors` — tested with Llama, Mistral and similar families. Closed APIs (OpenAI, Claude, Gemini) get Outer only, by design.
+
+---
+
+### How it works
+
+1. **Scan** — CPU reads `config.json` + weights header once → `manifest.json` (inventory of addressable components)
+2. **Watch** — you declare a `watchlist.yaml` (presets like `pilot-sparse-1k` or explicit addresses); validated before the run
+3. **Seal** — sidecar writes `outer.json` + `deep.bin` + `seal.json` + `chain.jsonl`; any 1-byte edit breaks `verify`
+
+```
+weights → manifest → watchlist → run (Outer + Deep) → sealed run → search / view
+```
+
+---
+
+### CLI
+
+| Command | What it does |
+|---|---|
+| `scan` | Inventory a checkpoint on CPU |
+| `run` | Execute with a watchlist and seal the run |
+| `find` | Search runs (prompts, tags, neuron predicates) |
+| `compare` | Good vs bad cohort stats + histogram |
+| `verify` | Check hash chain integrity |
+| `view` | CLI table, JSON, or static HTML |
+| `size` | Disk usage with GREEN/YELLOW/RED flags |
+| `export` | Flat zip with plain files — no lock-in |
+
+Full flag reference: [`spec.md`](spec.md) · Build manual: [`plan.md`](plan.md) · Format guide: [`docs/FORMAT_GUIDE.md`](docs/FORMAT_GUIDE.md)
+
+---
+
+### Notes
+
+- Records only what you declared, not "every neuron" — exact value per token for watched addresses.
+- Benchmarks are yours to run: `benchmark.sh` + estimator. No day-1 fleet numbers, community results are the report.
+- Never auto-deletes or auto-redacts — flags only (`GREEN <50GB / YELLOW / RED >1000GB` requires `--force`).
+- Raw traces for research on consented/synthetic data. Don't run on private user traffic without legal basis — plug your own `redactor=` hook if you must.
+
+---
+
+### License
+
+MIT — see [LICENSE](LICENSE). Community-maintained, no SLA unless funded. Contributions welcome.
